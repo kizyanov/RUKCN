@@ -1,8 +1,8 @@
 services:
-  kcn_main:
-    image: kizyanov/kcn_main:latest
+  rukcn_main:
+    image: kizyanov/rukcn_main:latest
     build: .
-    container_name: kcn_main
+    container_name: rukcn_main
     tty: true
     restart: always
     env_file:
