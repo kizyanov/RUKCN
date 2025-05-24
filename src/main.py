@@ -618,9 +618,13 @@ class KCN:
         method = "GET"
         return await do_async(
             Ok(result)
-            for full_url in self.get_full_url(self.BASE_URL, uri)
+            for params_in_url in self.get_url_params_as_str({})
+            for uri_params in self.cancatinate_str(uri, params_in_url)
+            for full_url in self.get_full_url(self.BASE_URL, uri_params)
             for now_time in self.get_now_time()
-            for data_to_sign in self.cancatinate_str(now_time, method, full_url)
+            for data_to_sign in self.cancatinate_str(
+                now_time, method, full_url, uri_params
+            )
             for headers in self.get_headers_auth(
                 data_to_sign,
                 now_time,
@@ -1960,10 +1964,12 @@ class KCN:
 
     async def infinity_task(self: Self) -> Result[None, Exception]:
         """Infinity run tasks."""
-        async with asyncio.TaskGroup() as tg:
-            await tg.create_task(self.change_rate_margin())
+        while True:
+            async with asyncio.TaskGroup() as tg:
+                await tg.create_task(self.change_rate_margin())
+                await tg.create_task(self.sleep_to(60 * 60))
 
-        return Ok(None)
+            return Ok(None)
 
 
 # meow anton - baka des ^^
