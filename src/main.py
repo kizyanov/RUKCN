@@ -1974,6 +1974,7 @@ async def main() -> Result[None, Exception]:
     kcn = KCN()
     match await do_async(
         Ok(None)
+        for _ in kcn.init_envs()
         for _ in kcn.logger_success("Pre-init OK!")
         for _ in await kcn.send_telegram_msg("KuCoin settings are OK!")
         for _ in await kcn.infinity_task()
