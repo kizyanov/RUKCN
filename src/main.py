@@ -1848,24 +1848,6 @@ class KCN:
                     logger.exception(exc)
         return Ok(None)
 
-    async def pre_init(self: Self) -> Result[Self, Exception]:
-        """Pre-init.
-
-        get all open orders
-        close all open orders
-        get increment by all tickets
-        """
-        return await do_async(
-            Ok(self)
-            for _ in self.init_envs()
-            for _ in self.create_book()
-            for _ in await self.massive_delete_order_by_symbol()
-            for _ in await self.sleep_to(sleep_on=5)
-            for _ in await self.fill_increment()
-            for _ in await self.fill_price()
-            for _ in self.logger_success(self.book)
-        )
-
     async def sleep_to(self: Self, *, sleep_on: float = 1) -> Result[None, Exception]:
         """."""
         await asyncio.sleep(sleep_on)
@@ -1992,7 +1974,6 @@ async def main() -> Result[None, Exception]:
     kcn = KCN()
     match await do_async(
         Ok(None)
-        for _ in await kcn.pre_init()
         for _ in kcn.logger_success("Pre-init OK!")
         for _ in await kcn.send_telegram_msg("KuCoin settings are OK!")
         for _ in await kcn.infinity_task()
