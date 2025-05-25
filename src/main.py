@@ -272,6 +272,19 @@ class ApiV3MarginRepayPOST:
 
 
 @dataclass(frozen=True)
+class ApiV3LendPurchaseUpdatePOST:
+    """https://www.kucoin.com/docs-new/rest/margin-trading/credit/modify-purchase."""
+
+    @dataclass(frozen=True)
+    class Res:
+        """Parse response request."""
+
+        code: str
+        data: str
+        msg: str | None
+
+
+@dataclass(frozen=True)
 class CrossMarginPosition:
     """."""
 
@@ -598,6 +611,46 @@ class KCN:
             for response_dict in self.parse_bytes_to_dict(response_bytes)
             for data_dataclass in self.convert_to_dataclass_from_dict(
                 ApiV3MarginRepayPOST.Res,
+                response_dict,
+            )
+            for result in self.check_response_code(data_dataclass)
+        )
+
+    async def post_api_v3_lend_purchase_update(
+        self: Self,
+        data: dict[str, float | str],
+    ) -> Result[ApiV3LendPurchaseUpdatePOST.Res, Exception]:
+        """Modify Purchase.
+
+        https://www.kucoin.com/docs-new/rest/margin-trading/credit/modify-purchase
+        """
+        uri = "/api/v3/lend/purchase/update"
+        method = "POST"
+        return await do_async(
+            Ok(result)
+            for full_url in self.get_full_url(self.BASE_URL, uri)
+            for dumps_data_bytes in self.dumps_dict_to_bytes(data)
+            for dumps_data_str in self.decode(dumps_data_bytes)
+            for now_time in self.get_now_time()
+            for data_to_sign in self.cancatinate_str(
+                now_time,
+                method,
+                uri,
+                dumps_data_str,
+            )
+            for headers in self.get_headers_auth(
+                data_to_sign,
+                now_time,
+            )
+            for response_bytes in await self.request(
+                url=full_url,
+                method=method,
+                headers=headers,
+                data=dumps_data_bytes,
+            )
+            for response_dict in self.parse_bytes_to_dict(response_bytes)
+            for data_dataclass in self.convert_to_dataclass_from_dict(
+                ApiV3LendPurchaseUpdatePOST.Res,
                 response_dict,
             )
             for result in self.check_response_code(data_dataclass)
@@ -1882,7 +1935,8 @@ class KCN:
         return Ok(None)
 
     def get_best_market_rate(
-        self: Self, data: ApiV3ProjectListGET.Res
+        self: Self,
+        data: ApiV3ProjectListGET.Res,
     ) -> Result[dict[str, str], Exception]:
         """."""
         result = {}
@@ -1913,7 +1967,7 @@ class KCN:
             )
         ):
             case Ok(purchase):
-                result.append(purchase.data.items)
+                result.append(*purchase.data.items)
 
                 if purchase.data.totalPage != 1:
                     current_page += 1
@@ -1928,7 +1982,7 @@ class KCN:
                             )
                         ):
                             case Ok(purchase):
-                                result.append(purchase.data.items)
+                                result.append(*purchase.data.items)
                                 current_page += 1
                             case Err(exc):
                                 logger.exception(exc)
@@ -1937,15 +1991,51 @@ class KCN:
                 logger.exception(exc)
         return Ok(result)
 
+    async def compare_market_rate(
+        self: Self,
+        my_purchase: list[ApiV3PurchaseOrdersGET.Res.Data.Item],
+        best_market_rate: dict[str, str],
+    ) -> Result[dict, Exception]:
+        """."""
+        for purchase in my_purchase:
+            if (
+                purchase.currency in best_market_rate
+                and purchase.interestRate != best_market_rate[purchase.currency]
+            ):
+                msg = f"Need update rate:{purchase.currency} from {purchase.interestRate} to {best_market_rate[purchase.currency]}"
+                logger.info(msg)
+
+                match await do_async(
+                    Ok(_)
+                    for _ in await self.post_api_v3_lend_purchase_update(
+                        {
+                            "currency": purchase.currency,
+                            "purchaseOrderNo": purchase.purchaseOrderNo,
+                            "interestRate": best_market_rate[purchase.currency],
+                        }
+                    )
+                    for _ in await self.send_telegram_msg(
+                        f"Update rate:{purchase.currency} from {purchase.interestRate} to {best_market_rate[purchase.currency]}"
+                    )
+                ):
+                    case Ok(purchase):
+                        logger.success(
+                            f"Update rate:{purchase.currency} from {purchase.interestRate} to {best_market_rate[purchase.currency]}"
+                        )
+                    case Err(exc):
+                        logger.exception(exc)
+
     async def change_rate_margin(self: Self) -> Result[None, Exception]:
         """."""
         match await do_async(
             Ok(_)
             for project_list in await self.get_api_v3_project_list()
             for best_market_rate in self.get_best_market_rate(project_list)
-            for _ in self.logger_info(best_market_rate)
             for all_purchase in await self.get_all_purchase()
-            for _ in self.logger_info(all_purchase)
+            for _ in self.compare_market_rate(
+                all_purchase,
+                best_market_rate,
+            )
         ):
             case Err(exc):
                 logger.exception(exc)
