@@ -678,6 +678,7 @@ class KCN:
 
     async def get_api_v3_purchase_orders(
         self: Self,
+        params: dict[str, str],
     ) -> Result[ApiV3PurchaseOrdersGET.Res, Exception]:
         """Get Purchase Orders.
 
@@ -687,7 +688,7 @@ class KCN:
         method = "GET"
         return await do_async(
             Ok(result)
-            for params_in_url in self.get_url_params_as_str({"status": "PENDING"})
+            for params_in_url in self.get_url_params_as_str(params)
             for uri_params in self.cancatinate_str(uri, params_in_url)
             for full_url in self.get_full_url(self.BASE_URL, uri_params)
             for now_time in self.get_now_time()
@@ -1896,6 +1897,46 @@ class KCN:
 
         return Ok(result)
 
+    async def get_all_purchase(
+        self: Self,
+    ) -> Result[list[ApiV3PurchaseOrdersGET.Res.Data.Item], Exception]:
+        """."""
+        result = []
+        current_page = 1
+        match await do_async(
+            Ok(purchase)
+            for purchase in await self.get_api_v3_purchase_orders(
+                {
+                    "status": "PENDING",
+                    "currentPage": current_page,
+                }
+            )
+        ):
+            case Ok(purchase):
+                result.append(purchase.data.items)
+
+                if purchase.data.totalPage != 1:
+                    current_page += 1
+                    for _ in range(purchase.data.totalPage - 1):
+                        match await do_async(
+                            Ok(purchase)
+                            for purchase in await self.get_api_v3_purchase_orders(
+                                {
+                                    "status": "PENDING",
+                                    "currentPage": current_page,
+                                }
+                            )
+                        ):
+                            case Ok(purchase):
+                                result.append(purchase.data.items)
+                                current_page += 1
+                            case Err(exc):
+                                logger.exception(exc)
+                                return Err(exc)
+            case Err(exc):
+                logger.exception(exc)
+        return Ok(result)
+
     async def change_rate_margin(self: Self) -> Result[None, Exception]:
         """."""
         match await do_async(
@@ -1903,8 +1944,8 @@ class KCN:
             for project_list in await self.get_api_v3_project_list()
             for best_market_rate in self.get_best_market_rate(project_list)
             for _ in self.logger_info(best_market_rate)
-            # for ss in await self.get_api_v3_purchase_orders()
-            # for _ in self.logger_info(ss)
+            for all_purchase in await self.get_all_purchase()
+            for _ in self.logger_info(all_purchase)
         ):
             case Err(exc):
                 logger.exception(exc)
