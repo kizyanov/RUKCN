@@ -1892,7 +1892,7 @@ class KCN:
                 result[ticket.currency] = ticket.minInterestRate
             else:
                 result[ticket.currency] = str(
-                    Decimal(ticket.marketInterestRate) - Decimal("0.01")
+                    Decimal(ticket.marketInterestRate) - Decimal("0.0001")
                 )
 
         return Ok(result)
