@@ -165,7 +165,7 @@ class ApiV3ProjectListGET:
             minInterestRate: str
             marketInterestRate: str
             maxInterestRate: str
-            autoPurchaseEnable: str
+            autoPurchaseEnable: bool
 
         data: list[Data]
         code: str
