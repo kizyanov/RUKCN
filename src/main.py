@@ -1881,14 +1881,31 @@ class KCN:
         await asyncio.sleep(sleep_on)
         return Ok(None)
 
+    def get_best_market_rate(
+        self: Self, data: ApiV3ProjectListGET.Res
+    ) -> Result[dict[str, str], Exception]:
+        """."""
+        result = {}
+
+        for ticket in data.data:
+            if ticket.marketInterestRate == ticket.minInterestRate:
+                result[ticket.currency] = ticket.minInterestRate
+            else:
+                result[ticket.currency] = str(
+                    Decimal(ticket.marketInterestRate) - Decimal("0.01")
+                )
+
+        return Ok(result)
+
     async def change_rate_margin(self: Self) -> Result[None, Exception]:
         """."""
         match await do_async(
             Ok(_)
-            for res in await self.get_api_v3_project_list()
-            for _ in self.logger_info(res)
-            for ss in await self.get_api_v3_purchase_orders()
-            for _ in self.logger_info(ss)
+            for project_list in await self.get_api_v3_project_list()
+            for best_market_rate in self.get_best_market_rate(project_list)
+            for _ in self.logger_info(best_market_rate)
+            # for ss in await self.get_api_v3_purchase_orders()
+            # for _ in self.logger_info(ss)
         ):
             case Err(exc):
                 logger.exception(exc)
