@@ -649,6 +649,7 @@ class KCN:
                 data=dumps_data_bytes,
             )
             for response_dict in self.parse_bytes_to_dict(response_bytes)
+            for _ in self.logger_info(response_dict)
             for data_dataclass in self.convert_to_dataclass_from_dict(
                 ApiV3LendPurchaseUpdatePOST.Res,
                 response_dict,
