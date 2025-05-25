@@ -167,7 +167,43 @@ class ApiV3ProjectListGET:
             maxInterestRate: str
             autoPurchaseEnable: str
 
-        data: Data | str
+        data: list[Data]
+        code: str
+        msg: str | None
+
+
+@dataclass(frozen=True)
+class ApiV3PurchaseOrdersGET:
+    """https://www.kucoin.com/docs-new/rest/margin-trading/credit/get-purchase-orders."""
+
+    @dataclass(frozen=True)
+    class Res:
+        """Parse response request."""
+
+        @dataclass(frozen=True)
+        class Data:
+            """."""
+
+            @dataclass(frozen=True)
+            class Item:
+                """."""
+
+                currency: str
+                purchaseOrderNo: str
+                purchaseSize: str
+                matchSize: str
+                interestRate: str
+                incomeSize: str
+                applyTime: int
+                status: str
+
+            currentPage: int
+            pageSize: int
+            totalNum: int
+            totalPage: int
+            items: list[Item]
+
+        data: Data
         code: str
         msg: str | None
 
@@ -567,10 +603,6 @@ class KCN:
             for result in self.check_response_code(data_dataclass)
         )
 
-    def get_all_token_for_matching(self: Self) -> Result[list[str], Exception]:
-        """."""
-        return Ok([f"{symbol}-USDT" for symbol in self.book])
-
     async def get_api_v3_hf_margin_orders_active(
         self: Self,
         params: dict[str, str],
@@ -640,6 +672,44 @@ class KCN:
             for _ in self.logger_info(response_dict)
             for data_dataclass in self.convert_to_dataclass_from_dict(
                 ApiV3ProjectListGET.Res,
+                response_dict,
+            )
+            for result in self.check_response_code(data_dataclass)
+        )
+
+    async def get_api_v3_purchase_orders(
+        self: Self,
+    ) -> Result[ApiV3PurchaseOrdersGET.Res, Exception]:
+        """Get Purchase Orders.
+
+        https://www.kucoin.com/docs-new/rest/margin-trading/credit/get-purchase-orders
+        """
+        uri = "/api/v3/purchase/orders"
+        method = "GET"
+        return await do_async(
+            Ok(result)
+            for params_in_url in self.get_url_params_as_str({"status": "PENDING"})
+            for uri_params in self.cancatinate_str(uri, params_in_url)
+            for full_url in self.get_full_url(self.BASE_URL, uri_params)
+            for now_time in self.get_now_time()
+            for data_to_sign in self.cancatinate_str(
+                now_time,
+                method,
+                uri_params,
+            )
+            for headers in self.get_headers_auth(
+                data_to_sign,
+                now_time,
+            )
+            for response_bytes in await self.request(
+                url=full_url,
+                method=method,
+                headers=headers,
+            )
+            for response_dict in self.parse_bytes_to_dict(response_bytes)
+            for _ in self.logger_info(response_dict)
+            for data_dataclass in self.convert_to_dataclass_from_dict(
+                ApiV3PurchaseOrdersGET.Res,
                 response_dict,
             )
             for result in self.check_response_code(data_dataclass)
@@ -866,19 +936,6 @@ class KCN:
         try:
             return do(
                 Ok(float(instance.pingInterval / 1000))
-                for instance in self.get_first_item_from_list(data.data.instanceServers)
-            )
-        except (KeyError, TypeError) as exc:
-            return Err(Exception(f"Miss keys instanceServers in {exc} by {data}"))
-
-    def get_ping_timeout_for_websocket(
-        self: Self,
-        data: ApiV1BulletPrivatePOST.Res,
-    ) -> Result[float, Exception]:
-        """Get ping timeout for websocket."""
-        try:
-            return do(
-                Ok(float(instance.pingTimeout / 1000))
                 for instance in self.get_first_item_from_list(data.data.instanceServers)
             )
         except (KeyError, TypeError) as exc:
@@ -1290,23 +1347,6 @@ class KCN:
                                 logger.exception(exc)
         return Ok(None)
 
-    async def processing_ws_candle(
-        self: Self, msg: str | bytes
-    ) -> Result[None, Exception]:
-        """."""
-        match await do_async(
-            Ok(None)
-            for value in self.parse_bytes_to_dict(msg)
-            for data_dataclass in self.convert_to_dataclass_from_dict(
-                KLines.Res,
-                value,
-            )
-            for _ in await self.event_candll(data_dataclass)
-        ):
-            case Err(exc):
-                return Err(exc)
-        return Ok(None)
-
     def export_debt_ratio(
         self: Self,
         data: ApiV3MarginAccountsGET.Res,
@@ -1351,24 +1391,6 @@ class KCN:
                     "id": uuid_str,
                     "type": "subscribe",
                     "topic": "/spotMarket/tradeOrdersV2",
-                    "privateChannel": True,
-                    "response": True,
-                },
-            )
-            for default_uuid4 in self.get_default_uuid4()
-            for uuid_str in self.format_to_str_uuid(default_uuid4)
-        )
-
-    def get_msg_for_subscribe_position(
-        self: Self,
-    ) -> Result[dict[str, str | bool], Exception]:
-        """Get msg for subscribe to position kucoin."""
-        return do(
-            Ok(
-                {
-                    "id": uuid_str,
-                    "type": "subscribe",
-                    "topic": "/margin/position",
                     "privateChannel": True,
                     "response": True,
                 },
@@ -1859,107 +1881,14 @@ class KCN:
         await asyncio.sleep(sleep_on)
         return Ok(None)
 
-    async def repay_assets(self: Self) -> Result[None, Exception]:
-        """Repay all assets."""
-        while True:
-            for asset in self.book:
-                base_size = Decimal("0.01")
-                while True:
-                    match await do_async(
-                        Ok(_)
-                        for _ in await self.sleep_to(sleep_on=0.1)
-                        for raw_size in self.divide(
-                            base_size,
-                            self.book[asset].down_price,
-                        )
-                        for size in self.quantize_plus(
-                            raw_size,
-                            self.book[asset].baseincrement,
-                        )
-                        for _ in await self.post_api_v3_margin_repay(
-                            data={
-                                "currency": asset,
-                                "size": float(size),
-                                "isIsolated": False,
-                                "isHf": True,
-                            }
-                        )
-                        for _ in self.logger_success(f"Repay:{asset} on {size}")
-                    ):
-                        case Err(_):
-                            break
-                    base_size *= 2
-            base_size = Decimal("0.01")
-            while True:
-                match await do_async(
-                    Ok(_)
-                    for _ in await self.sleep_to(sleep_on=0.1)
-                    for _ in await self.post_api_v3_margin_repay(
-                        data={
-                            "currency": "USDT",
-                            "size": float(base_size),
-                            "isIsolated": False,
-                            "isHf": True,
-                        }
-                    )
-                    for _ in self.logger_success(f"Repay:'USDT' on {base_size}")
-                ):
-                    case Err(_):
-                        break
-                base_size *= 2
-
-        return Ok(None)
-
-    async def close_redundant_orders(self: Self) -> Result[None, Exception]:
-        """Close redundant orders."""
-        while True:
-            for symbol in self.book:
-                match await do_async(
-                    Ok(active_orders)
-                    for _ in await self.sleep_to(sleep_on=1)
-                    for active_orders in await self.get_api_v3_hf_margin_orders_active(
-                        params={
-                            "symbol": f"{symbol}-USDT",
-                            "tradeType": "MARGIN_TRADE",
-                        }
-                    )
-                ):
-                    case Ok(active_orders):
-                        if active_orders.data:
-                            logger.warning(active_orders.data)
-                            for orde in active_orders.data:
-                                ss = orde.symbol.replace("-USDT", "")
-                                if ss in self.book_orders:
-                                    if orde.id != self.book_orders[ss][orde.side]:
-                                        match await do_async(
-                                            Ok(_)
-                                            for _ in await self.delete_api_v3_hf_margin_orders(
-                                                orde.id,
-                                                orde.symbol,
-                                            )
-                                        ):
-                                            case Err(exc):
-                                                logger.exception(exc)
-                                else:
-                                    match await do_async(
-                                        Ok(_)
-                                        for _ in await self.delete_api_v3_hf_margin_orders(
-                                            orde.id,
-                                            orde.symbol,
-                                        )
-                                    ):
-                                        case Err(exc):
-                                            logger.exception(exc)
-                    case Err(exc):
-                        logger.exception(exc)
-        return Ok(None)
-
     async def change_rate_margin(self: Self) -> Result[None, Exception]:
         """."""
         match await do_async(
             Ok(_)
             for res in await self.get_api_v3_project_list()
             for _ in self.logger_info(res)
+            for ss in await self.get_api_v3_purchase_orders()
+            for _ in self.logger_info(ss)
         ):
             case Err(exc):
                 logger.exception(exc)
