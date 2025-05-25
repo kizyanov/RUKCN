@@ -623,7 +623,9 @@ class KCN:
             for full_url in self.get_full_url(self.BASE_URL, uri_params)
             for now_time in self.get_now_time()
             for data_to_sign in self.cancatinate_str(
-                now_time, method, full_url, uri_params
+                now_time,
+                method,
+                uri_params,
             )
             for headers in self.get_headers_auth(
                 data_to_sign,
