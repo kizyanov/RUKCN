@@ -280,7 +280,7 @@ class ApiV3LendPurchaseUpdatePOST:
         """Parse response request."""
 
         code: str
-        data: str
+        data: str | None
         msg: str | None
 
 
