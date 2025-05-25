@@ -2019,7 +2019,7 @@ class KCN:
                         f"Update rate:{purchase.currency} from {purchase.interestRate} to {best_market_rate[purchase.currency]}"
                     )
                 ):
-                    case Ok(purchase):
+                    case Ok(_):
                         logger.success(
                             f"Update rate:{purchase.currency} from {purchase.interestRate} to {best_market_rate[purchase.currency]}"
                         )
