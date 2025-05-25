@@ -2046,7 +2046,7 @@ class KCN:
         while True:
             async with asyncio.TaskGroup() as tg:
                 await tg.create_task(self.change_rate_margin())
-                await tg.create_task(self.sleep_to(sleep_on=60))
+                await tg.create_task(self.sleep_to(sleep_on=60 * 60))
 
             return Ok(None)
 
