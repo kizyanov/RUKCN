@@ -1967,7 +1967,7 @@ class KCN:
             )
         ):
             case Ok(purchase):
-                result.append(*purchase.data.items)
+                result += purchase.data.items
 
                 if purchase.data.totalPage != 1:
                     current_page += 1
@@ -1982,7 +1982,7 @@ class KCN:
                             )
                         ):
                             case Ok(purchase):
-                                result.append(*purchase.data.items)
+                                result += purchase.data.items
                                 current_page += 1
                             case Err(exc):
                                 logger.exception(exc)
