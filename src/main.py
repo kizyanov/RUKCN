@@ -2032,7 +2032,7 @@ class KCN:
             for project_list in await self.get_api_v3_project_list()
             for best_market_rate in self.get_best_market_rate(project_list)
             for all_purchase in await self.get_all_purchase()
-            for _ in self.compare_market_rate(
+            for _ in await self.compare_market_rate(
                 all_purchase,
                 best_market_rate,
             )
