@@ -669,7 +669,6 @@ class KCN:
                 headers=headers,
             )
             for response_dict in self.parse_bytes_to_dict(response_bytes)
-            for _ in self.logger_info(response_dict)
             for data_dataclass in self.convert_to_dataclass_from_dict(
                 ApiV3ProjectListGET.Res,
                 response_dict,
@@ -1892,7 +1891,7 @@ class KCN:
                 result[ticket.currency] = ticket.minInterestRate
             else:
                 result[ticket.currency] = str(
-                    Decimal(ticket.marketInterestRate) - Decimal("0.01")
+                    Decimal(ticket.marketInterestRate) - Decimal("0.0001")
                 )
 
         return Ok(result)
