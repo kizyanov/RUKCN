@@ -1996,7 +1996,7 @@ class KCN:
         self: Self,
         my_purchase: list[ApiV3PurchaseOrdersGET.Res.Data.Item],
         best_market_rate: dict[str, str],
-    ) -> Result[dict, Exception]:
+    ) -> Result[None, Exception]:
         """."""
         for purchase in my_purchase:
             if (
@@ -2025,6 +2025,7 @@ class KCN:
                         )
                     case Err(exc):
                         logger.exception(exc)
+        return Ok(None)
 
     async def change_rate_margin(self: Self) -> Result[None, Exception]:
         """."""
