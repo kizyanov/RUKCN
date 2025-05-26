@@ -599,12 +599,12 @@ class KCN:
                 case Ok(purchase):
                     if len(purchase.data.items) == 0:
                         break
-                    current_page += 1
                     result += purchase.data.items
 
                 case Err(exc):
                     logger.exception(exc)
                     break
+            current_page += 1
         return Ok(result)
 
     async def compare_market_rate(
