@@ -574,7 +574,7 @@ class KCN:
                 result[ticket.currency] = ticket.minInterestRate
             else:
                 result[ticket.currency] = str(
-                    Decimal(ticket.marketInterestRate) - Decimal("0.0001")
+                    Decimal(ticket.marketInterestRate) - Decimal("0.0001"),
                 )
 
         return Ok(result)
@@ -593,7 +593,7 @@ class KCN:
                     {
                         "status": "PENDING",
                         "currentPage": current_page,
-                    }
+                    },
                 )
             ):
                 case Ok(purchase):
@@ -628,13 +628,13 @@ class KCN:
                             "currency": purchase.currency,
                             "purchaseOrderNo": purchase.purchaseOrderNo,
                             "interestRate": best_market_rate[purchase.currency],
-                        }
+                        },
                     )
                     for _ in await self.send_telegram_msg(
-                        f"Update rate:{purchase.currency} from {purchase.interestRate} to {best_market_rate[purchase.currency]}"
+                        f"Update rate:{purchase.currency} from {purchase.interestRate} to {best_market_rate[purchase.currency]}",
                     )
                     for _ in KCN.logger_success(
-                        f"Update rate:{purchase.currency} from {purchase.interestRate} to {best_market_rate[purchase.currency]}"
+                        f"Update rate:{purchase.currency} from {purchase.interestRate} to {best_market_rate[purchase.currency]}",
                     )
                 ):
                     case Err(exc):
