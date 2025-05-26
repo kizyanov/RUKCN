@@ -593,8 +593,14 @@ class KCN:
                     {
                         "status": "PENDING",
                         "currentPage": current_page,
+                        "pageSize": 1,
                     },
                 )
+                for _ in self.logger_info({
+                        "status": "PENDING",
+                        "currentPage": current_page,
+                        "pageSize": 1,
+                    })
             ):
                 case Ok(purchase):
                     if len(purchase.data.items) == 0:
