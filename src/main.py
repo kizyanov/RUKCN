@@ -604,11 +604,10 @@ class KCN:
                     })
             ):
                 case Ok(purchase):
-                    current_page += 1
                     if purchase.data.totalPage == current_page:
                         break
                     result += purchase.data.items
-
+                    current_page += 1
                 case Err(exc):
                     logger.exception(exc)
                     break
