@@ -82,6 +82,7 @@ class ApiV3PurchaseOrdersGET:
                 status: str
 
             items: list[Item]
+            totalPage:int
 
         data: Data
         code: str
@@ -593,24 +594,25 @@ class KCN:
                     {
                         "status": "PENDING",
                         "currentPage": current_page,
-                        "pageSize": 10,
+                        "pageSize": 50,
                     },
                 )
                 for _ in self.logger_info({
                         "status": "PENDING",
                         "currentPage": current_page,
-                        "pageSize": 10,
+                        "pageSize": 50,
                     })
             ):
                 case Ok(purchase):
-                    if len(purchase.data.items) == 0:
+                    current_page += 1
+                    if purchase.data.totalPage == current_page:
                         break
                     result += purchase.data.items
 
                 case Err(exc):
                     logger.exception(exc)
                     break
-            current_page += 1
+            
         return Ok(result)
 
     async def compare_market_rate(
